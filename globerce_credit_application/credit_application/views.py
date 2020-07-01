@@ -4,8 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from globerce_credit_application.credit_application.models import CreditApplication
-from globerce_credit_application.credit_application.serializers import CreditApplicationSerializer, CreateCreditApplicationSerializer
+from globerce_credit_application.credit_application.models import CreditApplication, CreditProgramm
+from globerce_credit_application.credit_application.serializers import CreditApplicationSerializer, CreateCreditApplicationSerializer, CreditProgrammSerializer
 from globerce_credit_application.users.permissions import IsUserOrReadOnly
 
 
@@ -24,6 +24,13 @@ class CreditApplicationViewSet(APIView):
         except:
             raise Http404
 
+class CreditProgrammViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Retrive credit programms list
+    """
+    queryset = CreditProgramm.objects.all()
+    serializer_class = CreditProgrammSerializer
+    permission_classes = (AllowAny,)
 
 
 class CreateCreditApplicationViewSet(mixins.CreateModelMixin,

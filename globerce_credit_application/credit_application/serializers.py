@@ -3,8 +3,9 @@ from django.http import Http404
 from rest_framework import serializers
 from django.core.validators import RegexValidator
 
-from globerce_credit_application.credit_application.models import CreditApplication, Borrower
+from globerce_credit_application.credit_application.models import CreditApplication, Borrower, CreditProgramm
 from globerce_credit_application.credit_application.validators import  CreditProgrammValidator, BorrowerIndividualEnterpreneurValidator, BorrowerBlacklistValidator
+from globerce_credit_application.credit_application.exceptions import InvalidLoanAmount, InvalidBorrowerAge, BorrowerIsIndividualEnterpreneurError, BorrowerIsInBlacklistError
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
 
@@ -19,6 +20,7 @@ class CreateCreditApplicationSerializer(serializers.Serializer):
 
     status = serializers.CharField(read_only=True)
     rejection_cause = serializers.CharField(read_only=True)
+    id = serializers.IntegerField(read_only=True)
 
     def create(self, validated_data):
         iin = str(validated_data['iin'])
@@ -29,15 +31,32 @@ class CreateCreditApplicationSerializer(serializers.Serializer):
         date_of_birth = datetime.strptime(raw_date_of_birth, '%y%m%d').date()
         borrower, _created = Borrower.objects.get_or_create(iin=iin, date_of_birth=date_of_birth)
 
-        credit_programm_validator = CreditProgrammValidator(credit_programm_id)
-        borrower_individual_enterpreneur_validater = BorrowerIndividualEnterpreneurValidator()
-        borrower_blacklist_validator = BorrowerBlacklistValidator()
+        try:
+            credit_programm_validator = CreditProgrammValidator(credit_programm_id)
+            borrower_individual_enterpreneur_validater = BorrowerIndividualEnterpreneurValidator()
+            borrower_blacklist_validator = BorrowerBlacklistValidator()
 
-        credit_programm_validator.validate(iin, loan_amount)
-        borrower_individual_enterpreneur_validater.validate(iin)
-        borrower_blacklist_validator.validate(iin)
+            credit_programm_validator.validate(iin, loan_amount)
+            borrower_individual_enterpreneur_validater.validate(iin)
+            borrower_blacklist_validator.validate(iin)
 
-        credit_application = CreditApplication.objects.create(
+        except (InvalidLoanAmount, InvalidBorrowerAge, BorrowerIsIndividualEnterpreneurError, BorrowerIsInBlacklistError) as exception:
+            rejection_cause = str(exception.detail[0])
+            
+            rejected_credit_application, _created = CreditApplication.objects.get_or_create(
+                borrower=borrower,
+                credit_programm=credit_programm_validator.credit_programm,
+                loan_amount=loan_amount,
+                status='rejected',
+                rejection_cause=rejection_cause
+            )
+
+            return rejected_credit_application
+        
+        except CreditProgramm.DoesNotExist as exception:
+            raise Http404
+
+        credit_application, _created = CreditApplication.objects.get_or_create(
             borrower=borrower,
             credit_programm=credit_programm_validator.credit_programm,
             loan_amount=loan_amount,
@@ -47,3 +66,8 @@ class CreateCreditApplicationSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('iin', 'credit_programm_id', 'loan_amount',)
+
+class CreditProgrammSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditProgramm
+        fields = "__all__"

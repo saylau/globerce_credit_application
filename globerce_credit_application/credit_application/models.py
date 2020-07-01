@@ -38,6 +38,9 @@ class CreditApplication(models.Model):
     rejection_cause = models.CharField(blank=True, null=True, max_length=256)
 
     objects = CreditApplicationManager()
+    
+    class Meta:
+        unique_together = ('borrower', 'credit_programm', 'loan_amount',)
 
 class BlackListManager(models.Manager):
     pass

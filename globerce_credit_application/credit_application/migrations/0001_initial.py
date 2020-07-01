@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CreditProgramm',
             fields=[
-                ('id', models.IntegerField(editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('minimum_loan_amount', models.PositiveIntegerField()),
                 ('maximum_loan_amount', models.PositiveIntegerField()),
                 ('minimum_borrower_age', models.PositiveIntegerField()),
